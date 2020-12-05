@@ -1,37 +1,58 @@
-const express = require('express');
+//to keep my personal database settings private
+const dotenv = require("dotenv").config();
+const port = process.env.PORT || 3000;
+const host = process.env.HOST;
+const dbURI = process.env.MONGODB_URI;
 
-//Create express app
+const express = require('express');
+const morgan = require('morgan');
+const mongoose = require('mongoose');
+
+const blogRoutes = require('./routes/blogRoutes');
+
+//create express app
 const app = express();
 
-//Set view engine
-app.set('view engine', 'ejs')
+//connect to database, listen to port...
+mongoose.connect(dbURI, { useNewUrlParser: true,  useUnifiedTopology: true }) 
+.then((result)=>app.listen(port, host, ()=>{
+    console.log(`Server is listening:  ${host} : ${port}`)}))
+    .catch((err)=>{console.log(err)})
+
+//to control that we have connection with database
+const db = mongoose.connection
+db.on('error', error=>console.log(error))
+db.once('open', ()=>console.log('Connected to Mongoose'))
+
+//set view engine
+app.set('view engine', 'ejs');
+
+//static files (public files)
+app.use(express.static('public'));
+
+//middleware that takes the url encoded data and pass it to an object
+app.use(express.urlencoded({extended: true}));
+
+// a tool that logs information, like status codes and so on...
+app.use(morgan('dev'));
 
 
-app.listen(3000, ()=>{
-    console.log('Listening on port 3000')
-});
-
+//home page handler routes
 app.get('/', (req, res)=>{
-    const blogs=[
-
-        //{title: 'test1', snippet: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "},
-        //{title: 'test2', snippet: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "},
-        //{title: 'test3', snippet: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "}
-    ]
-
-    res.render('index', {title : 'Home', blogs})
+    res.redirect('/blogs');
 });
 
 app.get('/about', (req, res)=>{
     res.render('about', {title : 'About'})
 });
 
-app.get('/blogs/create', (req, res)=>{
-    res.render('create', {title : 'Create a New Blog Post'})
-})
+
+//blog routes
+app.use('/blogs', blogRoutes);
 
 
-//If nothing else matches above, then send the 404 page
+//if nothing else matches above, then send the 404 page
 app.use((req, res)=>{
     res.status(404).render('404', {title : '404'});
-})
+});
+
